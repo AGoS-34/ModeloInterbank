@@ -1,0 +1,1325 @@
+import React, { useState, useMemo, useRef } from 'react';
+
+import { 
+    Search, 
+    Menu, 
+    ChevronDown, 
+    ChevronUp, 
+    ArrowRight, 
+    Monitor, 
+    Smartphone, 
+    MessageCircle, 
+    CreditCard, 
+    FileText, 
+    Headphones,
+    LayoutGrid,
+    RefreshCw,
+    LogOut,
+    Bell,
+    UserPlus,
+    X,
+    UserCheck,
+    AlertCircle,
+    AlertTriangle,
+    BellRing,
+    Check,
+    ListChecks,
+    Eye,
+    Zap,
+    Bot,
+    Phone,
+    Users,
+    Mail,
+    ClipboardCheck,
+    Code,
+    Clock,
+    LogIn 
+} from 'lucide-react';
+
+// --- UTILIDADES Y ESTILOS SIMPLIFICADOS ---
+
+const Card = ({ children, className = '' }) => (
+    <div className={`bg-white shadow-xl border border-gray-100 rounded-xl p-6 ${className}`}>
+        {children}
+    </div>
+);
+
+
+const ServiceCard = ({ item, onClick }) => {
+    // Función para obtener el color de estado
+    const getStatusColor = (status) => {
+        switch(status) {
+            case 'Activo': return 'bg-green-100 text-green-700 border-green-200';
+            case 'Ocupado': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+            case 'Mantenimiento': return 'bg-red-100 text-red-700 border-red-200';
+            case 'Inactivo': return 'bg-gray-100 text-gray-600 border-gray-200';
+            default: return 'bg-gray-100 text-gray-600';
+        }
+    };
+
+    return (
+        <div 
+            onClick={() => onClick(item)}
+            className="group relative bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg hover:border-[#009c3b] transition-all duration-300 cursor-pointer flex flex-col h-full"
+        >
+            <div className="mb-4 text-gray-600 group-hover:text-[#009c3b] transition-colors transform group-hover:scale-110 duration-300 origin-left">
+                {item.icon}
+            </div>
+
+            <h3 className="text-lg font-bold text-gray-800 mb-2 group-hover:text-[#009c3b] transition-colors">
+                {item.title}
+            </h3>
+
+            <div className="mt-auto pt-4 flex items-center justify-between">
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${getStatusColor(item.status)}`}>
+                    {item.status}
+                </span>
+                
+                <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-[#009c3b] group-hover:text-white transition-all duration-300">
+                    <ArrowRight size={16} />
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+// --- 3. MODAL DE INGRESO DE RECLAMOS ---
+
+const ReclamoInputModal = ({ closeModal, logCrmAction, addTicketToList, source }) => {
+    const [title, setTitle] = useState('');
+    const [details, setDetails] = useState('');
+    const [claimType, setClaimType] = useState('Transaccion');
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!title || !details) {
+            alert("Por favor, complete el título y los detalles del reclamo.");
+            return;
+        }
+
+        const ticketId = Math.floor(Math.random() * 900000) + 100000;
+        
+        // 1. Agregar ticket a la lista y actualizar métricas
+        addTicketToList({
+            id: `T-${ticketId}`,
+            title,
+            details,
+            type: claimType,
+            status: 'Abierto',
+            date: new Date().toLocaleDateString('es-ES'),
+            source: source // AÑIDO: Origen App o Tarjeta
+        });
+        
+        // 2. Loguear la acción en el CRM
+        logCrmAction(`[TICKET CREADO] T-${ticketId}: ${title} (Origen: ${source}).`);
+
+        console.log(`Ticket T-${ticketId} creado. Tipo: ${claimType}. Origen: ${source}. Detalles: ${details}`);
+        
+        closeModal();
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100">
+                
+                {/* Modal Header */}
+                <div className="bg-red-600 px-6 py-4 flex justify-between items-center text-white">
+                    <div className="flex items-center gap-3">
+                        <BellRing size={24} />
+                        <h3 className="text-xl font-bold">Ingreso de Reclamo (Origen: {source})</h3>
+                    </div>
+                    <button onClick={closeModal} className="p-1 hover:bg-white/20 rounded-full transition-colors">
+                        <X size={24} />
+                    </button>
+                </div>
+
+                {/* Modal Body */}
+                <form onSubmit={handleSubmit} className="p-8 space-y-5">
+                    
+                    <div className="text-sm text-gray-600 mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="font-semibold text-red-700">El tipo de incidencia ya se ha clasificado como: <span className='font-bold'>{source}</span>.</p>
+                        <p>Complete los datos para generar el ticket.</p>
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-bold text-gray-700 block mb-1">Título/Asunto</label>
+                        <input 
+                            type="text" 
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            placeholder="Ej: Cobro doble en app" 
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none"
+                            required
+                        />
+                    </div>
+                    
+                    <div>
+                        <label className="text-sm font-bold text-gray-700 block mb-1">Categoría del Reclamo</label>
+                        <select 
+                            value={claimType}
+                            onChange={(e) => setClaimType(e.target.value)}
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none bg-white"
+                        >
+                            <option value="Transaccion">Transacción (PLIN/Transferencia/Cargo)</option>
+                            <option value="Servicio">Banca Digital/Servicio</option>
+                            <option value="CRM">CRM/Asignación</option>
+                            <option value="Otro">Otro/General</option>
+                        </select>
+                    </div>
+
+                    <div>
+                       <label className="text-sm font-bold text-gray-700 block mb-1">Detalles y Observaciones</label>
+                       <textarea 
+                       value={details}
+                       onChange={(e) => setDetails(e.target.value)}
+                       className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none resize-none h-24"
+                       placeholder="Detalle el monto, fecha y pasos si aplica."
+                       required
+                       ></textarea>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="pt-4">
+                        <button type="submit" className="w-full px-5 py-2.5 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 shadow-lg shadow-red-200 transition-all flex items-center justify-center gap-2">
+                            <FileText size={20} />
+                            Crear Ticket y Enviar a Seguimiento
+                        </button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    );
+};
+
+
+// --- 4. MODAL DE ASIGNACIÓN MANUAL CRM ---
+const CRMAssignmentModal = ({ closeModal, logCrmAction }) => {
+    const handleAssign = () => {
+        logCrmAction(`[CRM] Cliente asignado manualmente (DNI XXXXXX).`);
+        closeModal();
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all scale-100">
+                
+                {/* Modal Header */}
+                <div className="bg-[#009c3b] px-6 py-4 flex justify-between items-center text-white">
+                    <div className="flex items-center gap-3">
+                        <UserPlus size={24} />
+                        <h3 className="text-xl font-bold">Asignación Manual CRM</h3>
+                    </div>
+                    <button onClick={closeModal} className="p-1 hover:bg-white/20 rounded-full transition-colors">
+                        <X size={24} />
+                    </button>
+                </div>
+
+                {/* Modal Body */}
+                <div className="p-8">
+                    <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-r-lg">
+                        <div className="flex items-start">
+                            <AlertCircle className="text-blue-500 mt-0.5 mr-3" size={20} />
+                            <div>
+                                <h4 className="text-sm font-bold text-blue-800">Uso Exclusivo</h4>
+                                <p className="text-sm text-blue-700 mt-1">
+                                    Utilice esta herramienta solo cuando el cliente no se asigne automáticamente al iniciar la interacción omnicanal.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-gray-700">Tipo de Documento</label>
+                                <select className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#009c3b] focus:border-transparent outline-none bg-white">
+                                    <option>DNI</option>
+                                    <option>RUC</option>
+                                    <option>Carnet de Extranjería</option>
+                                    <option>Pasaporte</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-gray-700">Número de Documento</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Ingrese número..." 
+                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#009c3b] focus:border-transparent outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-bold text-gray-700">Motivo de Asignación Manual</label>
+                            <select className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#009c3b] focus:border-transparent outline-none bg-white">
+                                <option value="">Seleccione un motivo...</option>
+                                <option>Error en identificación biométrica</option>
+                                <option>Cliente VIP / Banca Exclusiva</option>
+                                <option>Incidencia Técnica en CRM</option>
+                                <option>Atención por Apoderado</option>
+                            </select>
+                        </div>
+
+                        <div className="space-y-2">
+                           <label className="text-sm font-bold text-gray-700">Observaciones (Opcional)</label>
+                           <textarea 
+                           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#009c3b] focus:border-transparent outline-none resize-none h-24"
+                           placeholder="Detalle brevemente el caso..."
+                           ></textarea>
+                        </div>
+                    </div>
+
+                    <div className="mt-8 flex justify-end gap-3 pt-6 border-t border-gray-100">
+                        <button 
+                            onClick={closeModal}
+                            className="px-5 py-2.5 text-gray-600 font-medium hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                        <button onClick={handleAssign} className="px-5 py-2.5 bg-[#009c3b] text-white font-bold rounded-lg hover:bg-[#007a2e] shadow-lg shadow-green-200 transition-all flex items-center gap-2">
+                            <UserCheck size={20} />
+                            Asignar y Abrir CRM
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- 5. MODAL DE SEGUIMIENTO DE TICKETS (NUEVO) ---
+
+const TicketsListModal = ({ closeModal, ticketsList, handleResolveTicket }) => {
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden transform transition-all scale-100">
+                
+                {/* Modal Header */}
+                <div className="bg-blue-600 px-6 py-4 flex justify-between items-center text-white">
+                    <div className="flex items-center gap-3">
+                        <ListChecks size={24} />
+                        <h3 className="text-xl font-bold">Seguimiento de Tickets (Ingresados)</h3>
+                    </div>
+                    <button onClick={closeModal} className="p-1 hover:bg-white/20 rounded-full transition-colors">
+                        <X size={24} />
+                    </button>
+                </div>
+
+                {/* Modal Body */}
+                <div className="p-8 max-h-[80vh] overflow-y-auto">
+                    <p className="text-sm text-gray-600 mb-4">Mostrando tickets generados en esta sesión. Total: {ticketsList.length}</p>
+
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID / Origen</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asunto</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {ticketsList.length === 0 ? (
+                                <tr>
+                                    <td colSpan="4" className="px-6 py-4 text-center text-sm text-gray-500 italic">
+                                        No hay tickets registrados. Ingrese un reclamo primero.
+                                    </td>
+                                </tr>
+                            ) : (
+                                ticketsList.map((ticket) => (
+                                    <tr key={ticket.id} className={ticket.status === 'Resuelto' ? 'bg-green-50' : 'hover:bg-gray-50'}>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="text-sm font-medium text-gray-900">{ticket.id}</div>
+                                            <div className="text-xs font-bold text-gray-700 mt-1">
+                                                {ticket.source === 'App' ? (
+                                                    <span className='text-indigo-600 flex items-center'><Smartphone size={12} className='mr-1' /> App Digital</span>
+                                                ) : (
+                                                    <span className='text-red-600 flex items-center'><CreditCard size={12} className='mr-1' /> Tarjeta Física</span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-normal w-1/3">
+                                            <div className="text-sm text-gray-900 line-clamp-1">{ticket.title}</div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                                ticket.status === 'Abierto' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                                            }`}>
+                                                {ticket.status}
+                                            </span>
+                                        </td>
+                                        {/* CELDA DE ACCIÓN ELIMINADA */}
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+// --- 6. MODAL VISOR GLOBAL 360° ---
+
+const Visor360Modal = ({ closeModal }) => {
+    // Datos simulados de dos tarjetas
+    const cards = useMemo(() => [
+        { 
+            id: '5001 **** **** 1234', 
+            type: 'Crédito', 
+            status: 'Activa', 
+            balance: 5500.00, 
+            limit: 8000.00, 
+            color: 'bg-red-500' 
+        },
+        { 
+            id: '4005 **** **** 5678', 
+            type: 'Débito', 
+            status: 'Bloqueo temporal', 
+            balance: 1250.50, 
+            limit: null, 
+            color: 'bg-blue-600' 
+        }
+    ], []);
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden transform transition-all scale-100">
+                
+                {/* Modal Header */}
+                <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center text-white">
+                    <div className="flex items-center gap-3">
+                        <Eye size={24} />
+                        <h3 className="text-xl font-bold">Visor Global 360° (Tarjetas del Cliente)</h3>
+                    </div>
+                    <button onClick={closeModal} className="p-1 hover:bg-white/20 rounded-full transition-colors">
+                        <X size={24} />
+                    </button>
+                </div>
+
+                {/* Modal Body */}
+                <div className="p-8 space-y-6 max-h-[80vh] overflow-y-auto">
+                    <h4 className="text-lg font-semibold text-gray-800 border-b pb-2">Información Consolidada</h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {cards.map(card => (
+                            <Card key={card.id} className={`${card.color} text-white shadow-xl p-6`}>
+                                <div className="flex justify-between items-start">
+                                    <CreditCard size={32} />
+                                    <span className="text-sm font-light italic">{card.type}</span>
+                                </div>
+                                <p className="text-xl font-mono mt-4">{card.id}</p>
+                                <div className="mt-4 border-t border-white/30 pt-3">
+                                    <div className="flex justify-between">
+                                        <span className="text-sm font-medium">Estado:</span>
+                                        <span className={`text-sm font-bold ${card.status === 'Bloqueo temporal' ? 'text-yellow-300' : 'text-green-300'}`}>
+                                            {card.status}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between mt-1">
+                                        <span className="text-lg font-medium">Saldo Disponible:</span>
+                                        <span className="text-2xl font-extrabold">S/. {card.balance.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                    {card.limit && (
+                                        <div className="text-xs mt-1 opacity-80">Límite Aprobado: S/. {card.limit.toLocaleString('es-ES')}</div>
+                                    )}
+                                </div>
+                            </Card>
+                        ))}
+                    </div>
+
+                    <p className="text-sm text-gray-600 pt-4 border-t">
+                        Nota: La información mostrada aquí es simulada. Permite al ejecutivo verificar saldos y estados sin salir del portal omnicanal.
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+// --- 7. MODAL CHATBOT/FAQ ---
+
+const ChatbotFAQ = ({ closeModal }) => {
+    const FAQS = [
+        {
+            q: "¿Cómo desbloqueo mi tarjeta de débito?",
+            a: "Puedes desbloquear tu tarjeta de débito ingresando a la Banca por Internet, seleccionando 'Tarjetas' > 'Desbloqueo' o llamando al 1-800-INTERBANK.",
+        },
+        {
+            q: "¿Cuál es el límite de mi transferencia diaria?",
+            a: "Por seguridad, el límite diario para transferencias a terceros es de S/ 10,000.00 o su equivalente en dólares. Puedes modificarlo temporalmente en tu configuración de seguridad.",
+        },
+        {
+            q: "¿Qué hago si olvidé mi clave de internet?",
+            a: "Haz clic en 'Olvidé mi clave' en la pantalla de inicio de sesión de la Banca por Internet y sigue los pasos para la recuperación. Necesitarás tener a mano tu tarjeta de débito y DNI.",
+        },
+        {
+            q: "¿Puedo pagar mis servicios desde la app?",
+            a: "Sí, la sección 'Pagos' te permite pagar servicios públicos, telefonía, colegios y más. Solo necesitas el código de pago o número de cuenta.",
+        },
+    ];
+    
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden transform transition-all scale-100">
+                
+                {/* Modal Header */}
+                <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center text-white">
+                    <div className="flex items-center gap-3">
+                        <Bot size={24} />
+                        <h3 className="text-xl font-bold">Interbank Chatbot (Ayuda Rápida)</h3>
+                    </div>
+                    <button onClick={closeModal} className="p-1 hover:bg-white/20 rounded-full transition-colors">
+                        <X size={24} />
+                    </button>
+                </div>
+
+                {/* Modal Body */}
+                <div className="p-8 max-h-[80vh] overflow-y-auto">
+                    <div className="flex items-start mb-8 p-4 bg-indigo-100 rounded-xl shadow-inner">
+                        <Bot className="w-8 h-8 text-indigo-600 flex-shrink-0 mr-3 mt-1" />
+                        <div>
+                            <h3 className="text-xl font-semibold text-indigo-800">¡Hola! Soy tu Asistente Virtual.</h3>
+                            <p className="text-indigo-700">
+                                Estoy aquí para responder tus Preguntas Frecuentes.
+                            </p>
+                        </div>
+                    </div>
+
+                    <h3 className="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2 flex items-center gap-2">
+                        <Zap className='w-5 h-5 text-yellow-600'/> Preguntas Frecuentes
+                    </h3>
+
+                    <div className="space-y-4">
+                        {FAQS.map((faq, index) => (
+                            <details key={index} className="group cursor-pointer rounded-lg border border-gray-200 bg-white shadow-sm hover:shadow-md transition duration-150">
+                                <summary className="flex justify-between items-center p-4 font-semibold text-gray-800 list-none">
+                                    <span>{faq.q}</span>
+                                    <ChevronDown className="w-5 h-5 text-indigo-600 transition-transform duration-200 transform group-open:rotate-180" />
+                                </summary>
+                                <div className="px-4 pb-4 pt-0 text-gray-600 border-t border-gray-100 bg-gray-50 rounded-b-lg">
+                                    <p className='mt-2'>{faq.a}</p>
+                                </div>
+                            </details>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+// --- 8. MODAL: HUB DE DIAGNÓSTICO DE TRANSACCIONES (NUEVO) ---
+
+const TransactionProcessModal = ({ closeModal, logCrmAction, addTicketToList, setActiveModal }) => {
+    const [activeTab, setActiveTab] = useState('investigacion');
+    const [reversionStatus, setReversionStatus] = useState(null); 
+    const [rastreoStatus, setRastreoStatus] = useState(null);
+    const [comprobanteOp, setComprobanteOp] = useState('');
+
+    // Historial simulado de rastreo
+    const rastreoHistory = useMemo(() => [
+        { id: '789456-01', date: '10:30 AM', status: 'FINALIZADO (OK)', color: 'text-green-600' },
+        { id: '789456-02', date: '10:35 AM', status: 'RECHAZADO (Límites)', color: 'text-red-600' },
+        { id: '789456-03', date: '11:05 AM', status: 'PENDIENTE EN CÁMARA', color: 'text-yellow-600' },
+    ], []);
+
+    const handleRastreo = () => {
+        setRastreoStatus(null);
+        logCrmAction('[Rastreo] Iniciando consulta de estado...');
+        
+        // Simulación: No actualiza el historial, solo el log
+        setTimeout(() => {
+            const status = Math.random() > 0.5 ? 'FINALIZADO (OK)' : 'PENDIENTE EN CÁMARA';
+            setRastreoStatus(status);
+            logCrmAction(`[Rastreo] Resultado para 789456: ${status}`);
+        }, 1500);
+    };
+
+    const handleReversion = () => {
+        setReversionStatus(null);
+        logCrmAction('[Reversión] Iniciando solicitud de reversión...');
+        
+        setTimeout(() => {
+            const status = Math.random() > 0.8 ? 'ERROR' : 'REVERTIDA';
+            setReversionStatus(status);
+            logCrmAction(`[Reversión] Monto menor de S/. 200.00: ${status}`);
+        }, 1500);
+    };
+    
+    // Función para crear un reclamo rápido (UI/Cargo Duplicado)
+    const handleQuickClaim = (title) => {
+        setActiveModal({ type: 'QUICK_RECLAMO_INPUT', source: 'App', defaultTitle: title });
+        logCrmAction(`[TICKET RÁPIDO] Abriendo formulario para: ${title}`);
+    };
+    
+    // Función para simular el envío de comprobante
+    const handleComprobante = () => {
+        if (!comprobanteOp) {
+            alert('Ingrese un número de operación para simular el envío.');
+            return;
+        }
+        logCrmAction(`[COMPROBANTE] Solicitud de voucher para Op: ${comprobanteOp}. Enviando por correo...`);
+        alert(`Comprobante para Op: ${comprobanteOp} simulado y enviado.`);
+        setComprobanteOp('');
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden transform transition-all scale-100">
+                
+                {/* Modal Header */}
+                <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center text-white">
+                    <div className="flex items-center gap-3">
+                        <Smartphone size={24} />
+                        <h3 className="text-xl font-bold">Diagnóstico y Gestión de Fallas en Transacciones App</h3>
+                    </div>
+                    <button onClick={closeModal} className="p-1 hover:bg-white/20 rounded-full transition-colors">
+                        <X size={24} />
+                    </button>
+                </div>
+
+                {/* TABS */}
+                <div className="flex border-b border-gray-200">
+                    <button 
+                        onClick={() => setActiveTab('investigacion')}
+                        className={`py-3 px-6 text-sm font-semibold transition-colors ${activeTab === 'investigacion' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                    >
+                        <Zap size={16} className='inline mr-2' /> Investigación y Rastreo
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('reporte')}
+                        className={`py-3 px-6 text-sm font-semibold transition-colors ${activeTab === 'reporte' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                    >
+                        <BellRing size={16} className='inline mr-2' /> Reporte Rápido y Quejas
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('acciones')}
+                        className={`py-3 px-6 text-sm font-semibold transition-colors ${activeTab === 'acciones' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                    >
+                        <ClipboardCheck size={16} className='inline mr-2' /> Acciones Correctivas
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('comprobante')}
+                        className={`py-3 px-6 text-sm font-semibold transition-colors ${activeTab === 'comprobante' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                    >
+                        <FileText size={16} className='inline mr-2' /> Solicitud Comprobante
+                    </button>
+                </div>
+
+                {/* Modal Body */}
+                <div className="p-6 md:p-8 max-h-[70vh] overflow-y-auto">
+                    
+                    {/* Contenido: 1. Investigación y Rastreo */}
+                    {activeTab === 'investigacion' && (
+                        <div className='space-y-6'>
+                            <h4 className="text-xl font-bold text-gray-800">Rastreo de Transacciones Interbancarias</h4>
+                            <p className="text-gray-600">Verifique el estado de la transacción para informar al cliente antes de crear un ticket CRM.</p>
+                            
+                            <Card className="shadow-md p-4 space-y-4">
+                                <label className="block text-sm font-medium text-gray-700">Código de Operación (PLIN/CCI)</label>
+                                <input type="text" placeholder="Ej: 789456-01" className="w-full p-2 border border-gray-300 rounded-lg" />
+                                
+                                <button onClick={handleRastreo} className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 transition">
+                                    Rastrear Estado de Dinero
+                                </button>
+                                
+                                {rastreoStatus && (
+                                    <div className={`mt-3 p-3 rounded-lg font-bold ${rastreoStatus.includes('OK') ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                        Estado Final: {rastreoStatus}
+                                    </div>
+                                )}
+                            </Card>
+
+                            <Card className="shadow-md p-4">
+                                <h5 className="text-md font-semibold mb-2 text-indigo-700">Historial de Rastreo (Simulación)</h5>
+                                <table className="min-w-full text-xs">
+                                    <thead className='border-b'>
+                                        <tr>
+                                            <th className='p-1 text-left'>ID Operación</th>
+                                            <th className='p-1 text-left'>Hora</th>
+                                            <th className='p-1 text-left'>Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {rastreoHistory.map((op, index) => (
+                                            <tr key={index}>
+                                                <td className='py-1 font-mono'>{op.id}</td>
+                                                <td className='py-1'>{op.date}</td>
+                                                <td className={`py-1 font-semibold ${op.color}`}>{op.status}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </Card>
+                        </div>
+                    )}
+
+                    {/* Contenido: 2. Reporte Rápido y Quejas */}
+                    {activeTab === 'reporte' && (
+                        <div className='space-y-4'>
+                            <h4 className="text-xl font-bold text-gray-800">Creación Rápida de Quejas y Tickets</h4>
+                            <p className="text-gray-600">Seleccione el tipo de falla para generar un ticket rápido.</p>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {/* Reporte de Fallo UI (Problema de Frontend) */}
+                                <button 
+                                    onClick={() => handleQuickClaim('Reporte de Fallo de Interfaz (UI)')}
+                                    className="p-4 border-2 border-red-200 bg-red-50 rounded-lg text-left hover:shadow-lg transition-shadow"
+                                >
+                                    <Code size={20} className='text-red-500 mb-2' />
+                                    <p className="font-semibold text-red-800">Reporte de Fallo de Interfaz (UI)</p>
+                                    <p className="text-xs text-red-600">App se cerró/congeló.</p>
+                                </button>
+
+                                {/* Reclamo por Cargo Duplicado */}
+                                <button 
+                                    onClick={() => handleQuickClaim('Reclamo por Cargo Duplicado')}
+                                    className="p-4 border-2 border-yellow-200 bg-yellow-50 rounded-lg text-left hover:shadow-lg transition-shadow"
+                                >
+                                    <CreditCard size={20} className='text-yellow-600 mb-2' />
+                                    <p className="font-semibold text-yellow-800">Reclamo por Cargo Duplicado</p>
+                                    <p className="text-xs text-yellow-600">Clasificación rápida para reversión.</p>
+                                </button>
+
+                                {/* Solicitud de Comprobante / Voucher */}
+                                <button 
+                                    onClick={() => handleQuickClaim('Solicitud de Comprobante / Voucher')}
+                                    className="p-4 border-2 border-blue-200 bg-blue-50 rounded-lg text-left hover:shadow-lg transition-shadow"
+                                >
+                                    <FileText size={20} className='text-blue-500 mb-2' />
+                                    <p className="font-semibold text-blue-800">Solicitud de Comprobante / Voucher</p>
+                                    <p className="text-xs text-blue-600">El cliente no recibió el recibo.</p>
+                                </button>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-4 border-t pt-3">
+                                Nota: Al presionar estos botones, se abre el formulario rápido para ingresar la descripción.
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Contenido: 3. Acciones Correctivas */}
+                    {activeTab === 'acciones' && (
+                         <div className='space-y-4'>
+                            <h4 className="text-xl font-bold text-gray-800">Acciones de Soporte / Reversión Inmediata (Simulación)</h4>
+                            <p className="text-gray-600">Ejecute acciones correctivas preliminares para evitar la escalada al Back Office.</p>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <button 
+                                    onClick={handleReversion}
+                                    className="p-4 border-2 border-green-200 bg-green-50 rounded-lg text-left hover:shadow-lg transition-shadow flex items-center justify-between"
+                                >
+                                    <div>
+                                        <ClipboardCheck size={20} className='text-green-600 mb-1' />
+                                        <p className="font-semibold text-green-800">Reversión Rápida (Monto menor)</p>
+                                    </div>
+                                    <ArrowRight size={20} className='text-green-600' />
+                                </button>
+                                <button 
+                                    onClick={() => logCrmAction('[ACCIÓN] Enviando notificación de éxito manual.')}
+                                    className="p-4 border-2 border-indigo-200 bg-indigo-50 rounded-lg text-left hover:shadow-lg transition-shadow flex items-center justify-between"
+                                >
+                                     <div>
+                                        <Bell size={20} className='text-indigo-600 mb-1' />
+                                        <p className="font-semibold text-indigo-800">Reenviar Notificación de Éxito</p>
+                                     </div>
+                                    <ArrowRight size={20} className='text-indigo-600' />
+                                </button>
+                            </div>
+                            
+                            {reversionStatus && (
+                                <div className={`mt-4 p-3 rounded-lg font-bold ${reversionStatus === 'REVERTIDA' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                    Resultado de Reversión: {reversionStatus}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    
+                    {/* Contenido: 4. Solicitud Comprobante */}
+                    {activeTab === 'comprobante' && (
+                        <div className='space-y-4'>
+                            <h4 className="text-xl font-bold text-gray-800">Generación y Envío de Comprobantes</h4>
+                            <p className="text-gray-600">Busque la operación para reenviar el comprobante oficial al correo electrónico del cliente.</p>
+
+                            <Card className="shadow-md p-4 space-y-4">
+                                <label className="block text-sm font-medium text-gray-700">ID de Transacción</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Ej: 9456-01-23" 
+                                    value={comprobanteOp}
+                                    onChange={(e) => setComprobanteOp(e.target.value)}
+                                    className="w-full p-2 border border-gray-300 rounded-lg" 
+                                />
+                                <button onClick={handleComprobante} className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 transition">
+                                    Generar y Enviar Comprobante
+                                </button>
+                            </Card>
+                            
+                            <Card className="bg-gray-50 border-gray-200 p-4">
+                                <h5 className="font-semibold text-sm text-gray-800 mb-2">Comprobante (Visualización Simulada)</h5>
+                                <p className="font-mono text-xs text-gray-700">
+                                    [**COMPROBANTE BANCARIO INTERBANK**]<br/>
+                                    Operación: {comprobanteOp || '9456-01-23'}<br/>
+                                    Monto: S/. 150.00<br/>
+                                    Destino: BCP (CCI: 002-194-000000000-00)<br/>
+                                    <span className="font-bold text-green-600">Fecha y Hora: {new Date().toLocaleString('es-ES')}</span><br/>
+                                    Estado: Éxito<br/>
+                                    ---
+                                </p>
+                            </Card>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+// --- 10. MODAL: FORMULARIO RÁPIDO DE RECLAMOS (NUEVO) ---
+
+const ReclamoQuickFormModal = ({ closeModal, logCrmAction, addTicketToList, source, defaultTitle }) => {
+    const [details, setDetails] = useState('');
+    const [claimType] = useState('Transaccion'); // Tipo fijo para reclamos rápidos
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!details) {
+            alert("Por favor, ingrese los detalles específicos del reclamo.");
+            return;
+        }
+
+        const ticketId = Math.floor(Math.random() * 900000) + 100000;
+        
+        addTicketToList({
+            id: `T-${ticketId}`,
+            title: defaultTitle,
+            details,
+            type: claimType,
+            status: 'Abierto',
+            date: new Date().toLocaleDateString('es-ES'),
+            source: source
+        });
+        
+        logCrmAction(`[TICKET RÁPIDO] Creado T-${ticketId}: ${defaultTitle} (Origen: ${source}).`);
+        closeModal();
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100">
+                
+                {/* Modal Header */}
+                <div className="bg-red-600 px-6 py-4 flex justify-between items-center text-white">
+                    <div className="flex items-center gap-3">
+                        <BellRing size={24} />
+                        <h3 className="text-xl font-bold">Reporte Rápido de Falla</h3>
+                    </div>
+                    <button onClick={closeModal} className="p-1 hover:bg-white/20 rounded-full transition-colors">
+                        <X size={24} />
+                    </button>
+                </div>
+
+                {/* Modal Body */}
+                <form onSubmit={handleSubmit} className="p-8 space-y-5">
+                    
+                    <div className="text-sm text-gray-600 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="font-semibold text-red-700">Tipo de Falla: <span className='font-bold'>{defaultTitle}</span>.</p>
+                        <p className='text-xs'>Este ticket se generará con origen **{source}**.</p>
+                    </div>
+
+                    <div>
+                       <label className="text-sm font-bold text-gray-700 block mb-1">Descripción del Incidente</label>
+                       <textarea 
+                       value={details}
+                       onChange={(e) => setDetails(e.target.value)}
+                       className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none resize-none h-28"
+                       placeholder="Detalle el monto, la fecha, y si la app se cerró o se congeló."
+                       required
+                       ></textarea>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="pt-4">
+                        <button type="submit" className="w-full px-5 py-2.5 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 shadow-lg shadow-red-200 transition-all flex items-center justify-center gap-2">
+                            <FileText size={20} />
+                            Crear Ticket Tarea
+                        </button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    );
+};
+
+
+// --- 11. DASHBOARD (MAIN APP) ---
+
+const Dashboard = ({ isLoggedIn, handleLogin, handleLogout, user }) => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [clientSearchTerm, setClientSearchTerm] = useState(''); // Nuevo estado para la búsqueda de cliente
+    const [activeModal, setActiveModal] = useState(null);
+    
+    // CRM Metrics (Ahora dinámicas)
+    const [crmMetrics, setCrmMetrics] = useState({ 
+        pending: 0, 
+        resolved: 0, 
+        log: [
+            { timestamp: new Date().toLocaleTimeString('es-ES'), message: 'Sistema listo.' },
+        ]
+    });
+    
+    // Nuevo estado: Lista de tickets creados en la sesión
+    const [ticketsList, setTicketsList] = useState([]);
+
+    const logRef = useRef(null); 
+
+    // Log function (central para la interacción)
+    const logCrmAction = (message) => {
+        const now = new Date().toLocaleTimeString('es-ES');
+        setCrmMetrics(prev => ({
+            ...prev,
+            log: [{ timestamp: now, message }, ...prev.log].slice(0, 5) // Mantiene 5 entradas
+        }));
+    };
+
+    // Función para actualizar las métricas desde un modal (ej. Reclamo)
+    const updateCrmMetrics = (updater) => {
+        setCrmMetrics(updater);
+    };
+    
+    // Función central para añadir un ticket (llamada desde el modal de ingreso)
+    const addTicketToList = (newTicket) => {
+        setTicketsList(prev => [newTicket, ...prev]);
+        // Actualiza las métricas del CRM
+        setCrmMetrics(prev => ({
+            ...prev,
+            pending: prev.pending + 1
+        }));
+    };
+    
+    // Función para resolver un ticket (llamada desde el modal de seguimiento)
+    const handleResolveTicket = (ticketId) => {
+        setTicketsList(prev => prev.map(ticket => 
+            ticket.id === ticketId ? { ...ticket, status: 'Resuelto' } : ticket
+        ));
+
+        // Actualizar métricas del CRM
+        setCrmMetrics(prev => ({
+            ...prev,
+            pending: prev.pending - 1,
+            resolved: prev.resolved + 1
+        }));
+        logCrmAction(`[TICKET RESUELTO] ${ticketId} marcado como resuelto.`);
+    };
+
+
+    const serviceCategories = useMemo(() => [
+        {
+            id: 1,
+            title: "Canales de Contacto Directo",
+            isOpen: true,
+            items: [
+                { title: "Consola WhatsApp", icon: <MessageCircle size={28} />, status: "Activo", action: 'contact' },
+                // BANCA TELEFÓNICA CON TELÉFONO PRESIONABLE
+                { title: "Banca Telefónica", icon: <Headphones size={28} />, status: "Activo", action: 'contact' },
+            ]
+        },
+        {
+            id: 2,
+            title: "Operaciones y Productos",
+            isOpen: true,
+            items: [
+                // Visor 360° abre el modal Visor360Modal
+                { title: "Visor Global 360° (Tarjetas)", icon: <LayoutGrid size={28} />, status: "Activo", action: 'modal_visor' }, 
+                // Gestión Transacción -> Módulo de Diagnóstico
+                { title: "Gestión del proceso de transacción por la App de Interbank", icon: <Smartphone size={28} />, status: "Activo", action: 'modal_transaction_hub' }, // <--- AHORA ABRE EL HUB
+                // Problemas PLIN -> FAQ
+                { title: "Consultas Frecuentes (PLIN y App)", icon: <Smartphone size={28} />, status: "Activo", action: 'modal_faq' },
+            ]
+        },
+        {
+            id: 3,
+            title: "Gestión de Reclamos y CRM",
+            isOpen: true,
+            items: [
+                // Ingreso de Reclamos -> Reclamo de Tarjeta
+                { title: "Ingreso de Reclamos", icon: <FileText size={28} />, status: "Activo", action: 'modal_reclamo_card' }, 
+                // Seguimiento Tickets -> Lista de Tickets
+                { title: "Seguimiento Tickets", icon: <RefreshCw size={28} />, status: "Activo", action: 'modal_tickets_list' }, 
+                { title: "Asignación Manual CRM", icon: <UserPlus size={28} />, status: "Activo", action: 'modal_crm' },
+            ]
+        }
+    ], []);
+
+    const [categories, setCategories] = useState(serviceCategories);
+
+    const handleServiceClick = (item) => {
+        if (item.action === 'modal_crm') {
+            setActiveModal('CRM_ASSIGNMENT');
+        } else if (item.action === 'modal_reclamo_app') {
+            setActiveModal({ type: 'RECLAMO_INPUT', source: 'App' });
+        } else if (item.action === 'modal_reclamo_card') {
+            setActiveModal({ type: 'RECLAMO_INPUT', source: 'Tarjeta' });
+        } else if (item.action === 'modal_tickets_list') { 
+             setActiveModal('TICKETS_LIST');
+        } else if (item.action === 'modal_visor') { 
+             setActiveModal('VISOR_360');
+        } else if (item.action === 'modal_faq') { 
+             setActiveModal('CHATBOT_FAQ');
+        } else if (item.action === 'modal_transaction_hub') { // NUEVO HUB DE TRANSACCIÓN
+            setActiveModal('TRANSACTION_HUB');
+        } else if (item.action === 'contact' && item.title === 'Banca Telefónica') {
+             // Simulación de llamada telefónica (se puede reemplazar por window.location.href = "tel:1800INTERBANK")
+             logCrmAction(`[LLAMADA] Iniciando llamada a Banca Telefónica (1800-INTERBANK)...`);
+             alert("Simulando llamada a 1-800-INTERBANK. Revisa el log de Interacción.");
+        } else if (item.action === 'contact' || item.action === 'log' || item.action === 'transaction') {
+            logCrmAction(`[CANALES/OPERACIÓN] Iniciado: ${item.title}.`);
+        } else {
+             logCrmAction(`[SISTEMA] Acción no definida para: ${item.title}`);
+        }
+    };
+
+    const closeModal = () => {
+        setActiveModal(null);
+    };
+
+    const toggleCategory = (id) => {
+        setCategories(categories.map(cat => 
+            cat.id === id ? { ...cat, isOpen: !cat.isOpen } : cat
+        ));
+    };
+    
+    // Ajustamos el nombre de usuario
+    const displayUser = user;
+
+    if (!isLoggedIn) {
+        return (
+             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-100">
+                <LoginScreen handleLogin={handleLogin} />
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-gray-50 font-sans text-gray-800 flex flex-col relative">
+            
+            {/* HEADER INTERBANK */}
+            <header className="bg-white shadow-sm sticky top-0 z-40">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex justify-between items-center h-20">
+                        <div className="flex items-center gap-4">
+                            {/* NUEVO: Barra de Búsqueda de Cliente/Cuenta */}
+                            <div className="hidden sm:flex relative bg-gray-50 rounded-full border border-gray-300 w-64 mr-4">
+                                <input
+                                    type="text"
+                                    placeholder="Buscar DNI o Cuenta..."
+                                    className="w-full pl-3 pr-8 py-1.5 rounded-full text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-transparent"
+                                    value={clientSearchTerm}
+                                    onChange={(e) => setClientSearchTerm(e.target.value)}
+                                />
+                                <Search className="absolute right-3 top-2 text-gray-400" size={16} />
+                            </div>
+                            
+                            <div className="flex items-center gap-1">
+                                <div className="font-bold text-2xl tracking-tight text-gray-800">
+                                    <span className='text-[#009c3b]'>Inter</span><span className='text-gray-800'>bank</span>
+                                </div>
+                                <div className="w-2 h-2 rounded-full bg-[#ffcc00] mt-1"></div> {/* Logo dot in Yellow */}
+                            </div>
+                        </div>
+
+                        <div className="hidden md:flex flex-1 max-w-lg mx-8 relative">
+                            <input
+                                type="text"
+                                placeholder="Buscar servicio, operación o código..."
+                                className="w-full pl-10 pr-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:border-[#009c3b] focus:ring-1 focus:ring-[#009c3b] transition-all bg-gray-50 hover:bg-white"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                            <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                           <button className="p-2 relative text-gray-500 hover:text-[#009c3b] transition-colors">
+                            <Bell size={22} />
+                            <span className="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                           </button>
+                            
+                            <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
+                                <div className="text-right hidden sm:block">
+                                    <p className="text-sm font-bold text-gray-800">{displayUser.name}</p>
+                                    <p className="text-xs text-gray-500">{displayUser.role} | {displayUser.id}</p>
+                                </div>
+                                <div className="w-10 h-10 rounded-full bg-[#009c3b] text-white flex items-center justify-center font-bold shadow-md cursor-pointer hover:bg-[#007a2e] transition-colors">
+                                    {displayUser.name.charAt(0)}{displayUser.name.split(" ")[0].charAt(1)}
+                                </div>
+                                <ChevronDown size={16} className="text-gray-400 cursor-pointer" />
+                            </div>
+                            <button 
+                                onClick={handleLogout}
+                                className="p-2 text-red-500 hover:text-red-700 transition-colors"
+                                title="Cerrar Sesión"
+                            >
+                                <LogOut size={22} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            {/* CONTENIDO PRINCIPAL */}
+            <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 z-0">
+                <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900">Portafolio de Servicios</h1>
+                        <p className="text-gray-500 mt-1">Herramientas de atención omnicanal. Ejecutivo: {displayUser.name}</p>
+                    </div>
+                    <div className="flex gap-2">
+                        {/* Botón Reportar Incidencia principal */}
+                        <button 
+                            onClick={() => setActiveModal({ type: 'RECLAMO_INPUT', source: 'General' })} 
+                            className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                            title="Abrir formulario de Ingreso de Reclamos"
+                        >
+                            <AlertTriangle size={16} className='text-red-500'/> 
+                            Reportar Incidencia
+                        </button>
+                        <button className="px-4 py-2 bg-[#009c3b] text-white rounded-lg text-sm font-medium hover:bg-[#007a2e] shadow-sm transition-colors flex items-center gap-2">
+                            <RefreshCw size={16} />
+                            Actualizar Datos
+                        </button>
+                    </div>
+                </div>
+                
+                {/* Dashboard CRM/Métricas (Panel Fijo) */}
+                <div className="mb-8 p-6 bg-white rounded-xl shadow-xl border-t-4 border-blue-500">
+                    <h2 className="text-2xl font-bold text-blue-600 mb-4 flex items-center">
+                        <LayoutGrid className='mr-2 w-6 h-6'/> Resumen del Flujo de Trabajo CRM
+                    </h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                        {/* Métrica 1: Reclamos Pendientes */}
+                        <div className="p-4 bg-red-100 rounded-lg shadow-inner flex flex-col">
+                            <p className="text-sm font-medium text-red-800">Reclamos Pendientes</p>
+                            <p className="text-4xl font-bold text-red-600 mt-1">{crmMetrics.pending}</p>
+                        </div>
+                        {/* Métrica 2: Reclamos Resueltos */}
+                        <div className="p-4 bg-green-100 rounded-lg shadow-inner flex flex-col">
+                            <p className="text-sm font-medium text-green-800">Reclamos Resueltos</p>
+                            <p className="text-4xl font-bold text-green-600 mt-1">{crmMetrics.resolved}</p>
+                        </div>
+                        {/* Métrica 3: Log de Interacción del Sistema */}
+                        <div className="p-4 bg-gray-100 rounded-lg shadow-inner col-span-1 sm:col-span-1">
+                            <p className="text-sm font-medium text-gray-800 border-b pb-1 mb-2">Log de Interacción</p>
+                            <div className="text-xs space-y-1 overflow-y-auto max-h-24" ref={logRef}>
+                                {crmMetrics.log.map((entry, index) => (
+                                    <p key={index} className='text-gray-600'><span className='text-gray-400'>[{entry.timestamp}]</span> {entry.message}</p>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-6">
+                    {categories.map((category) => (
+                        <div key={category.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                            <button 
+                                onClick={() => toggleCategory(category.id)}
+                                className={`w-full flex items-center justify-between px-6 py-4 transition-colors duration-300 ${
+                                    category.isOpen 
+                                        ? 'bg-gradient-to-r from-[#009c3b] to-[#007a2e] text-white' 
+                                        : 'bg-white hover:bg-gray-50 text-gray-800'
+                                }`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <h2 className={`text-lg font-bold ${category.isOpen ? 'text-white' : 'text-gray-800'}`}>
+                                        {category.title}
+                                    </h2>
+                                </div>
+                                {category.isOpen ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+                            </button>
+
+                            {category.isOpen && (
+                                <div className="p-6 bg-white animate-fadeIn">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                        {category.items
+                                            .filter(item => item.title.toLowerCase().includes(searchTerm.toLowerCase()))
+                                            .map((item, index) => (
+                                            <ServiceCard 
+                                                key={index} 
+                                                item={item} 
+                                                onClick={handleServiceClick}
+                                            />
+                                        ))}
+                                    </div>
+                                    {category.items.filter(item => item.title.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && (
+                                        <div className="text-center py-4 text-gray-400 italic">
+                                            No se encontraron servicios que coincidan con tu búsqueda.
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </main>
+
+            {/* FOOTER */}
+            <footer className="bg-[#0f1923] text-white py-6 mt-auto">
+                <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center text-sm text-gray-400">
+                    <div>
+                        © {new Date().getFullYear()} Banco Internacional del Perú S.A.A. - Interbank
+                    </div>
+                    <div className="flex gap-6 mt-4 md:mt-0">
+                        <span className="hover:text-white cursor-pointer transition-colors">Mesa de Ayuda Interna</span>
+                        <span className="hover:text-white cursor-pointer transition-colors">Política de Seguridad</span>
+                        <span 
+                            onClick={handleLogout}
+                            className="flex items-center gap-2 hover:text-white cursor-pointer transition-colors text-red-400"
+                        >
+                            <LogOut size={14} /> Cerrar Sesión
+                        </span>
+                    </div>
+                </div>
+            </footer>
+
+            {/* MODALES */}
+            {activeModal === 'CRM_ASSIGNMENT' && (
+                <CRMAssignmentModal closeModal={closeModal} logCrmAction={logCrmAction} />
+            )}
+            
+            {activeModal && activeModal.type === 'RECLAMO_INPUT' && (
+                <ReclamoInputModal closeModal={closeModal} logCrmAction={logCrmAction} addTicketToList={addTicketToList} source={activeModal.source} />
+            )}
+
+            {activeModal === 'TICKETS_LIST' && (
+                <TicketsListModal closeModal={closeModal} ticketsList={ticketsList} handleResolveTicket={handleResolveTicket} />
+            )}
+
+            {activeModal === 'VISOR_360' && (
+                <Visor360Modal closeModal={closeModal} />
+            )}
+
+            {activeModal === 'CHATBOT_FAQ' && (
+                <ChatbotFAQ closeModal={closeModal} />
+            )}
+            
+            {activeModal === 'TRANSACTION_HUB' && (
+                <TransactionProcessModal closeModal={closeModal} logCrmAction={logCrmAction} addTicketToList={addTicketToList} setActiveModal={setActiveModal} />
+            )}
+            
+            {/* Modal para Reporte Rápido de Falla, llamado desde el Hub de Transacciones */}
+            {activeModal && activeModal.type === 'QUICK_RECLAMO_INPUT' && (
+                <ReclamoQuickFormModal 
+                    closeModal={closeModal} 
+                    logCrmAction={logCrmAction} 
+                    addTicketToList={addTicketToList} 
+                    source={activeModal.source}
+                    defaultTitle={activeModal.defaultTitle}
+                />
+            )}
+        </div>
+    );
+};
+
+
+// --- 12. PANTALLA DE INICIO DE SESIÓN ---
+
+const LoginScreen = ({ handleLogin }) => {
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState(null);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        setError(null);
+
+        // Lógica de validación simulada
+        if (username.toLowerCase() === 'gabriel' && password === '1234') {
+            handleLogin(true, "Gabriel Hurtado"); // Pasar el nombre de usuario
+        } else {
+            setError("Credenciales inválidas. Use 'gabriel' / '1234'.");
+        }
+    };
+
+    return (
+        <Card className="max-w-md w-full text-center p-8 shadow-2xl">
+            <div className="flex flex-col items-center mb-6">
+                <div className="font-bold text-3xl tracking-tight text-gray-800">
+                    <span className='text-[#009c3b]'>Inter</span><span className='text-gray-800'>bank</span>
+                </div>
+                <p className="text-lg font-semibold text-gray-600 mt-2">Portal Ejecutivo Omnicanal</p>
+                <p className="text-sm text-gray-400 mt-1">Acceso restringido</p>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+                {error && (
+                    <div className="bg-red-100 text-red-700 p-3 rounded-lg text-sm font-medium">
+                        {error}
+                    </div>
+                )}
+                <div>
+                    <input
+                        type="text"
+                        placeholder="Usuario (Ej: gabriel)"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#009c3b] focus:border-transparent"
+                        required
+                    />
+                </div>
+                <div>
+                    <input
+                        type="password"
+                        placeholder="Contraseña (Ej: 1234)"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#009c3b] focus:border-transparent"
+                        required
+                    />
+                </div>
+                <button
+                    type="submit"
+                    className="w-full bg-[#009c3b] text-white font-bold py-3 rounded-lg hover:bg-[#007a2e] transition-colors flex items-center justify-center gap-2 shadow-md"
+                >
+                    <LogIn size={20} />
+                    Iniciar Sesión
+                </button>
+            </form>
+        </Card>
+    );
+};
+
+
+// --- 13. COMPONENTE RAÍZ (Controla la Sesión y Vistas) ---
+
+export default function App() {
+    // Estado para controlar la sesión
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    // Estado para almacenar el nombre del ejecutivo
+    const [executiveName, setExecutiveName] = useState("Mi Nombre");
+
+    // Funciones de manejo de sesión
+    const handleLogin = (status, name = "Mi Nombre") => {
+        setIsLoggedIn(status);
+        if (status) {
+            setExecutiveName(name);
+        }
+    };
+
+    const handleLogout = () => {
+        setIsLoggedIn(false);
+        setExecutiveName("Mi Nombre"); // Resetear al nombre por defecto o genérico
+    };
+
+    // Ajustamos la estructura de props del Dashboard
+    const userProps = { name: executiveName, role: "Ejecutivo Omnicanal", id: "U21206941" };
+
+    return <Dashboard isLoggedIn={isLoggedIn} handleLogin={handleLogin} handleLogout={handleLogout} user={userProps} />;
+}
