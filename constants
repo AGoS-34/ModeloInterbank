@@ -1,0 +1,43 @@
+export const FAQS = [
+  {
+    q: "¿Cómo desbloqueo mi tarjeta de débito?",
+    a: "Puedes desbloquear tu tarjeta de débito ingresando a la Banca por Internet, seleccionando 'Tarjetas' > 'Desbloqueo' o llamando al 1-800-INTERBANK.",
+  },
+  {
+    q: "¿Cuál es el límite de mi transferencia diaria?",
+    a: "Por seguridad, el límite diario para transferencias a terceros es de S/ 10,000.00 o su equivalente en dólares. Puedes modificarlo temporalmente en tu configuración de seguridad.",
+  },
+  {
+    q: "¿Qué hago si olvidé mi clave de internet?",
+    a: "Haz clic en 'Olvidé mi clave' en la pantalla de inicio de sesión de la Banca por Internet y sigue los pasos para la recuperación. Necesitarás tener a mano tu tarjeta de débito y DNI.",
+  },
+  {
+    q: "¿Puedo pagar mis servicios desde la app?",
+    a: "Sí, la sección 'Pagos' te permite pagar servicios públicos, telefonía, colegios y más. Solo necesitas el código de pago o número de cuenta.",
+  },
+];
+
+export const RASTREO_HISTORY = [
+  { id: '789456-01', date: '10:30 AM', status: 'FINALIZADO (OK)', color: 'text-green-600' },
+  { id: '789456-02', date: '10:35 AM', status: 'RECHAZADO (Límites)', color: 'text-red-600' },
+  { id: '789456-03', date: '11:05 AM', status: 'PENDIENTE EN CÁMARA', color: 'text-yellow-600' },
+];
+
+export const MOCK_CARDS = [
+  {
+    id: '5001 **** **** 1234',
+    type: 'Crédito',
+    status: 'Activa',
+    balance: 5500.00,
+    limit: 8000.00,
+    color: 'bg-red-500'
+  },
+  {
+    id: '4005 **** **** 5678',
+    type: 'Débito',
+    status: 'Bloqueo temporal',
+    balance: 1250.50,
+    limit: null,
+    color: 'bg-blue-600'
+  }
+];
